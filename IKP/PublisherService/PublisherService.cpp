@@ -1,6 +1,7 @@
 #include "PublisherService.h"
 
 SOCKET acceptedSockets[NUMBER_OF_CLIENTS];
+DATA poppedMessage;
 
 int main()
 {
