@@ -9,6 +9,7 @@
 #include <conio.h>
 
 #include "../Common/Structures.h"
+#include "../Common/Queue.h"
 
 #pragma comment (lib, "Ws2_32.lib")
 #pragma comment (lib, "Mswsock.lib")
@@ -23,11 +24,21 @@
 
 THREAD_ARGUMENT publisherThreadArgument;
 bool pubservice_running = true;
+int numberOfPublishers = 0;
 
 int SelectFunction(SOCKET, char);
 char* ReceiveFunction(SOCKET);
-
+void Connect(SOCKET);
+void Publish(MESSAGE_QUEUE*, char*, char*, int);
 int SendFunction(SOCKET, char*, int);
+
+void Connect(SOCKET acceptedSocket) {
+
+	publisherThreadArgument.clientNumber = numberOfPublishers;
+	publisherThreadArgument.socket = acceptedSocket;
+
+	printf("\nPublisher %d connected.\n", ++numberOfPublishers);
+}
 
 int SelectFunction(SOCKET listenSocket, char rw) {
 	int iResult = 0;
@@ -121,4 +132,15 @@ int SendFunction(SOCKET connectSocket, char* message, int messageSize) {
 	}
 
 	return 1;
+}
+
+void Publish(MESSAGE_QUEUE* messageQueue, char* topic, char* message, int clientNumber) {
+
+	DATA data;
+	memcpy(data.message, message, strlen(message) + 1);
+	memcpy(data.topic, topic, strlen(topic) + 1);
+
+	EnqueueMessage(messageQueue, data);
+
+	printf("\nPublisher %d published new message to topic %s.\nMessage: %s\n", clientNumber + 1, data.topic, data.message);
 }

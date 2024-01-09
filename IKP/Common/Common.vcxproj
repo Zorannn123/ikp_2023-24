@@ -130,6 +130,7 @@
     <ClCompile Include="Common.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Queue.h" />
     <ClInclude Include="Structures.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
