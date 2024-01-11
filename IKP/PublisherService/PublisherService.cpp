@@ -8,12 +8,16 @@ HANDLE pubSubSemaphore;
 int publisherThreadKilled = -1;
 
 MESSAGE_QUEUE* messageQueue;
+DATA poppedMessage;
 
 int clientsCount = 0;
 int messages = 0;
 
 HANDLE PublisherThreads[NUMBER_OF_CLIENTS];
 DWORD PublisherThreadsID[NUMBER_OF_CLIENTS];
+
+HANDLE PubSubWorkThread;
+DWORD PubSubWorkThreadID;
 
 #define SAFE_DELETE_HANDLE(h) {if(h)CloseHandle(h);}
 
@@ -73,6 +77,46 @@ DWORD WINAPI PublisherWork(LPVOID lpParam)
 		}
 	}
 
+	return 1;
+}
+
+DWORD WINAPI PubSub1Work(LPVOID lpParam)
+{
+	int iResult = 0;
+	SOCKET connectedSocket = *(SOCKET*)lpParam;
+
+	while (pubservice_running)
+	{
+
+		WaitForSingleObject(pubSubSemaphore, INFINITE);
+
+
+		EnterCriticalSection(&message_queueAccess);
+		poppedMessage = DequeueMessage(messageQueue);
+		LeaveCriticalSection(&message_queueAccess);
+
+
+
+		char* message = (char*)malloc(sizeof(DATA) + 1);
+
+		if (message == NULL)
+		{
+			printf("Unable to alocate memory for the message buffer.");
+			exit(0);
+		}
+
+		memcpy(message, &poppedMessage.topic, (strlen(poppedMessage.topic)));
+		memcpy(message + (strlen(poppedMessage.topic)), ":", 1);
+		memcpy(message + (strlen(poppedMessage.topic) + 1), &poppedMessage.message, (strlen(poppedMessage.message) + 1));
+
+		int messageSize = strlen(message) + 1;
+		int sendResult = SendFunction(connectedSocket, message, messageSize);
+		free(message);
+
+		if (sendResult == -1)
+			break;
+
+	}
 	return 1;
 }
 
@@ -195,9 +239,43 @@ int main()
 		return 1;
 	}
 
+	//for client of publisherservice
+	SOCKET connectSocket = INVALID_SOCKET;
+
+
+	connectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+	if (connectSocket == INVALID_SOCKET)
+	{
+		printf("socket failed with error: %ld\n", WSAGetLastError());
+		WSACleanup();
+		return 1;
+	}
+
+	struct sockaddr_in serverAddress;
+	serverAddress.sin_family = AF_INET;
+	serverAddress.sin_addr.s_addr = inet_addr("127.0.0.1");
+	serverAddress.sin_port = htons(DEFAULT_CLIENT_PORT);
+
+	if (connect(connectSocket, (SOCKADDR*)&serverAddress, sizeof(serverAddress)) == SOCKET_ERROR)
+	{
+		printf("Unable to connect to server.\n");
+		closesocket(connectSocket);
+		WSACleanup();
+	}
+
+
+	int iResultSend = ioctlsocket(connectSocket, FIONBIO, &nonBlockingMode);
+
+	if (iResultSend == SOCKET_ERROR)
+	{
+		printf("ioctlsocket failed with error: %ld\n", WSAGetLastError());
+		return 1;
+	}
+
 	printf("\nServer successfully started, waiting for clients.\n");
 
-
+	PubSubWorkThread = CreateThread(NULL, 0, &PubSub1Work, &connectSocket, 0, &PubSubWorkThreadID);
 	exitThread = CreateThread(NULL, 0, &StopServer, &listenSocket, 0, &exitThreadID);
 
 	while (clientsCount < NUMBER_OF_CLIENTS && pubservice_running)
@@ -229,6 +307,11 @@ int main()
 			WaitForSingleObject(PublisherThreads[i], INFINITE);
 	}
 
+	if (PubSubWorkThread)
+	{
+		WaitForSingleObject(PubSubWorkThread, INFINITE);
+	}
+
 	if (exitThread) {
 		WaitForSingleObject(exitThread, INFINITE);
 	}
@@ -241,11 +324,13 @@ int main()
 		SAFE_DELETE_HANDLE(PublisherThreads[i]);
 	}
 
+	SAFE_DELETE_HANDLE(PubSubWorkThread);
 	SAFE_DELETE_HANDLE(exitThread);
 
 	SAFE_DELETE_HANDLE(pubSubSemaphore);
 
 	closesocket(listenSocket);
+	closesocket(connectSocket);
 
 	free(messageQueue->dataArray);
 	free(messageQueue);

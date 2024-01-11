@@ -30,7 +30,7 @@ int SelectFunction(SOCKET, char);
 char* ReceiveFunction(SOCKET);
 void Connect(SOCKET);
 void Publish(MESSAGE_QUEUE*, char*, char*, int);
-int SendFunction(SOCKET, char*, int);
+int SendFunction(SOCKET connectSocket, char* message, int messageSize);
 
 void Connect(SOCKET acceptedSocket) {
 

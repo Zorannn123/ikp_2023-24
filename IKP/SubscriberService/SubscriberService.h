@@ -10,11 +10,11 @@
 #include <conio.h>
 
 #include "../Common/Structures.h"
+#include "../Common/Queue.h"
 
 #pragma comment (lib, "Ws2_32.lib")
 #pragma comment (lib, "Mswsock.lib")
 #pragma comment (lib, "AdvApi32.lib")
-
 
 #define DEFAULT_BUFLEN 512
 #define DEFAULT_PORT "27017"
@@ -23,13 +23,26 @@
 #define INV_SOCKET 3435973836
 
 bool subService_running = true;
+int clientsCount = 0;
+
 THREAD_ARGUMENT subscriberThreadArgument;
 int numberOfConnectedSubs = 0;
 int numberOfSubscribedSubs = 0;
 
+void AddTopics(SUBSCRIBER_QUEUE*);
 int SelectFunction(SOCKET, char);
-char* ReceiveFunction(SOCKET);
+char* ReceiveFunction(SOCKET, char*);
+void Forward(MESSAGE_QUEUE* messageQueue, char* topic, char* message);
 char* Connect(SOCKET);
+
+void AddTopics(SUBSCRIBER_QUEUE* queue) {
+
+	EnqueueSub(queue, (char*)"Sport");
+	EnqueueSub(queue, (char*)"Fashion");
+	EnqueueSub(queue, (char*)"Politics");
+	EnqueueSub(queue, (char*)"News");
+	EnqueueSub(queue, (char*)"Show business");
+}
 
 char* Connect(SOCKET acceptedSocket) {
 	char* recvRes;
@@ -80,7 +93,16 @@ int SelectFunction(SOCKET listenSocket, char rw) {
 	} while (1);
 }
 
+void Forward(MESSAGE_QUEUE* messageQueue, char* topic, char* message) {
 
+	DATA data;
+	memcpy(data.message, message, strlen(message) + 1);
+	memcpy(data.topic, topic, strlen(topic) + 1);
+
+	EnqueueMessage(messageQueue, data);
+
+	printf("\nPublisherService  sent forward a new message from the Publisher to topic %s.\nMessage: %s\n", data.topic, data.message);
+}
 
 char* ReceiveFunction(SOCKET acceptedSocket) {
 
