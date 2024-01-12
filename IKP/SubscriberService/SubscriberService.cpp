@@ -4,25 +4,21 @@
 CRITICAL_SECTION queueAccess;
 CRITICAL_SECTION message_queueAccess;
 bool serverStopped = false;
-int messages = 0;
 
 HANDLE pubSubSemaphore;
 int publisherThreadKilled = -1;
 int subscriberSendThreadKilled = -1;
 int subscriberRecvThreadKilled = -1;
-SOCKET acceptedSocket;
 
-SUBSCRIBER_QUEUE* queue;
+SOCKET acceptedSocket;
+int clientsCount = 0;
+
+SUBSCRIBER_QUEUE* subQueue;
 MESSAGE_QUEUE* messageQueue;
 DATA poppedMessage;
 
 HANDLE PubSub2Thread;
 DWORD PubSub2ThreadId;
-
-
-
-
-
 
 DWORD WINAPI PubSub2Recieve(LPVOID lpParam)
 {
@@ -53,7 +49,6 @@ DWORD WINAPI PubSub2Recieve(LPVOID lpParam)
 				ptr = strtok(NULL, delimiter);
 				EnterCriticalSection(&message_queueAccess);
 				Forward(messageQueue, topic, message);
-				messages++;
 				LeaveCriticalSection(&message_queueAccess);
 				ReleaseSemaphore(pubSubSemaphore, 1, NULL);
 				free(recvRes);
@@ -85,10 +80,10 @@ DWORD WINAPI PubSub2Recieve(LPVOID lpParam)
 
 int main() {
 
-	queue = CreateSubQueue(10);
+	subQueue = CreateSubQueue(10);
 	messageQueue = CreateMessageQueue(1000);
 
-	AddTopics(queue);
+	AddTopics(subQueue);
 
 	InitializeCriticalSection(&queueAccess);
 	InitializeCriticalSection(&message_queueAccess);
@@ -188,8 +183,13 @@ int main() {
 			return 1;
 		}
 
-		printf("PubSub1 connected\n");
-		PubSub2Thread = CreateThread(NULL, 0, &PubSub2Recieve, &acceptedSocket, 0, &PubSub2ThreadId);
+		char* client = Connect(acceptedSocket);
+		if (!strcmp(client, "pubsub1")) {
+			PubSub2Thread = CreateThread(NULL, 0, &PubSub2Recieve, &acceptedSocket, 0, &PubSub2ThreadId);
+		}
+		else if (!strcmp(client, "sub")) {
+			clientsCount++;
+		}
 	}
 
 
@@ -203,7 +203,7 @@ int main() {
 
 	closesocket(listenSocket);
 
-	free(queue);
+	free(subQueue);
 	free(messageQueue->dataArray);
 	free(messageQueue);
 

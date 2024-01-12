@@ -11,7 +11,6 @@ MESSAGE_QUEUE* messageQueue;
 DATA poppedMessage;
 
 int clientsCount = 0;
-int messages = 0;
 
 HANDLE PublisherThreads[NUMBER_OF_CLIENTS];
 DWORD PublisherThreadsID[NUMBER_OF_CLIENTS];
@@ -50,7 +49,6 @@ DWORD WINAPI PublisherWork(LPVOID lpParam)
 				ptr = strtok(NULL, delimiter);
 				EnterCriticalSection(&message_queueAccess);
 				Publish(messageQueue, topic, message, argumentStructure.clientNumber);
-				messages++;
 				LeaveCriticalSection(&message_queueAccess);
 				ReleaseSemaphore(pubSubSemaphore, 1, NULL);
 				free(recvRes);
@@ -90,6 +88,8 @@ DWORD WINAPI PubSub1Work(LPVOID lpParam)
 
 		WaitForSingleObject(pubSubSemaphore, INFINITE);
 
+		if (!pubservice_running)
+			break;
 
 		EnterCriticalSection(&message_queueAccess);
 		poppedMessage = DequeueMessage(messageQueue);
@@ -123,17 +123,21 @@ DWORD WINAPI PubSub1Work(LPVOID lpParam)
 DWORD WINAPI StopServer(LPVOID lpParam)
 {
 	char input;
+	SOCKET connectedSocket = *(SOCKET*)lpParam;
+
 	while (pubservice_running) {
 
 		printf("\nPress X to stop server.\n");
 		input = _getch();
 
 		if (input == 'x' || input == 'X') {
-			ReleaseSemaphore(pubSubSemaphore, 1, NULL);
+			int iResult = 0;
+			iResult = SendFunction(connectedSocket, (char*)"shutdown", 9);
 
 			pubservice_running = false;
 
-			int iResult = 0;
+			ReleaseSemaphore(pubSubSemaphore, 1, NULL);
+
 			for (int i = 0; i < clientsCount; i++) {
 				if (acceptedSockets[i] != -1) {
 					iResult = shutdown(acceptedSockets[i], SD_BOTH);
@@ -146,7 +150,7 @@ DWORD WINAPI StopServer(LPVOID lpParam)
 					closesocket(acceptedSockets[i]);
 				}
 			}
-			closesocket(*(SOCKET*)lpParam);
+			closesocket(connectedSocket);
 
 			break;
 		}
@@ -275,8 +279,10 @@ int main()
 
 	printf("\nServer successfully started, waiting for clients.\n");
 
+	ConnectToSubscriberService(connectSocket);
+
 	PubSubWorkThread = CreateThread(NULL, 0, &PubSub1Work, &connectSocket, 0, &PubSubWorkThreadID);
-	exitThread = CreateThread(NULL, 0, &StopServer, &listenSocket, 0, &exitThreadID);
+	exitThread = CreateThread(NULL, 0, &StopServer, &connectSocket, 0, &exitThreadID);
 
 	while (clientsCount < NUMBER_OF_CLIENTS && pubservice_running)
 	{

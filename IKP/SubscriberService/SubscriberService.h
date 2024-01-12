@@ -23,7 +23,7 @@
 #define INV_SOCKET 3435973836
 
 bool subService_running = true;
-int clientsCount = 0;
+int subscribersCount = 0;
 
 THREAD_ARGUMENT subscriberThreadArgument;
 int numberOfConnectedSubs = 0;
@@ -31,7 +31,7 @@ int numberOfSubscribedSubs = 0;
 
 void AddTopics(SUBSCRIBER_QUEUE*);
 int SelectFunction(SOCKET, char);
-char* ReceiveFunction(SOCKET, char*);
+char* ReceiveFunction(SOCKET);
 void Forward(MESSAGE_QUEUE* messageQueue, char* topic, char* message);
 char* Connect(SOCKET);
 
@@ -49,8 +49,46 @@ char* Connect(SOCKET acceptedSocket) {
 
 	recvRes = ReceiveFunction(acceptedSocket);
 
-	return (char*)"test";
+	if (strcmp(recvRes, "ErrorC") && strcmp(recvRes, "ErrorR"))
+	{
+		if (!strcmp(recvRes, "pubsub1")) {
+			printf("\PubSub1 connected.\n");
+			free(recvRes);
+
+			return (char*)"pubsub1";
+		}
+
+		if (!strcmp(recvRes, "sub")) {
+
+			subscriberThreadArgument.socket = acceptedSocket;
+			subscriberThreadArgument.clientNumber = subscribersCount;
+
+			printf("\nSubscriber %d connected.\n", ++subscribersCount);
+
+			free(recvRes);
+
+			return (char*)"sub";
+		}
+
+	}
+	else if (!strcmp(recvRes, "ErrorC"))
+	{
+		printf("\nConnection with client closed.\n");
+		closesocket(acceptedSocket);
+	}
+	else if (!strcmp(recvRes, "ErrorR"))
+	{
+		printf("\nrecv failed with error: %d\n", WSAGetLastError());
+		closesocket(acceptedSocket);
+	}
 	free(recvRes);
+}
+
+void AddTopics(SUBSCRIBER_QUEUE* queue) {
+	EnqueueSub(queue, (char*)"Books");
+	EnqueueSub(queue, (char*)"Football");
+	EnqueueSub(queue, (char*)"Basketball");
+
 }
 
 int SelectFunction(SOCKET listenSocket, char rw) {
