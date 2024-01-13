@@ -34,3 +34,9 @@ typedef struct MessageQueue {
 	int front, rear, size, capacity;
 	DATA* dataArray;
 } MESSAGE_QUEUE;
+
+typedef struct Subscriber {
+	SOCKET socket;
+	HANDLE hSemaphore;
+	bool running;
+}SUBSCRIBER;

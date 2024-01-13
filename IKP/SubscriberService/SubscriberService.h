@@ -22,9 +22,10 @@
 #define NUMBER_OF_CLIENTS 40
 #define INV_SOCKET 3435973836
 
+#define SAFE_DELETE_HANDLE(h) {if(h)CloseHandle(h);}
+
 bool subService_running = true;
 int subscribersCount = 0;
-
 THREAD_ARGUMENT subscriberThreadArgument;
 int numberOfConnectedSubs = 0;
 int numberOfSubscribedSubs = 0;
@@ -34,15 +35,9 @@ int SelectFunction(SOCKET, char);
 char* ReceiveFunction(SOCKET);
 void Forward(MESSAGE_QUEUE* messageQueue, char* topic, char* message);
 char* Connect(SOCKET);
-
-void AddTopics(SUBSCRIBER_QUEUE* queue) {
-
-	EnqueueSub(queue, (char*)"Sport");
-	EnqueueSub(queue, (char*)"Fashion");
-	EnqueueSub(queue, (char*)"Politics");
-	EnqueueSub(queue, (char*)"News");
-	EnqueueSub(queue, (char*)"Show business");
-}
+int SendFunction(SOCKET connectSocket, char* message, int messageSize);
+void Subscribe(SUBSCRIBER_QUEUE*, SOCKET, char*);
+void SubscriberShutDown(SUBSCRIBER_QUEUE*, SOCKET, SUBSCRIBER subscribers[]);
 
 char* Connect(SOCKET acceptedSocket) {
 	char* recvRes;
@@ -52,7 +47,7 @@ char* Connect(SOCKET acceptedSocket) {
 	if (strcmp(recvRes, "ErrorC") && strcmp(recvRes, "ErrorR"))
 	{
 		if (!strcmp(recvRes, "pubsub1")) {
-			printf("\PubSub1 connected.\n");
+			printf("PubSub1 connected.\n");
 			free(recvRes);
 
 			return (char*)"pubsub1";
@@ -88,7 +83,6 @@ void AddTopics(SUBSCRIBER_QUEUE* queue) {
 	EnqueueSub(queue, (char*)"Books");
 	EnqueueSub(queue, (char*)"Football");
 	EnqueueSub(queue, (char*)"Basketball");
-
 }
 
 int SelectFunction(SOCKET listenSocket, char rw) {
@@ -175,4 +169,67 @@ char* ReceiveFunction(SOCKET acceptedSocket) {
 	return myBuffer;
 }
 
+int SendFunction(SOCKET connectSocket, char* message, int messageSize)
+{
+	int selectResult = SelectFunction(connectSocket, 'w');
+	if (selectResult == -1) {
+		return -1;
+	}
+	int iResult = send(connectSocket, message, messageSize, 0);
+
+	if (iResult == SOCKET_ERROR)
+	{
+		printf("send failed with error: %d\n", WSAGetLastError());
+		closesocket(connectSocket);
+		WSACleanup();
+		return 0;
+	}
+
+	return 1;
+}
+
+void Subscribe(SUBSCRIBER_QUEUE* queue, SOCKET sub, char* topic) {
+	for (int i = 0; i < queue->size; i++) {
+		if (!strcmp(queue->subArray[i].topic, topic)) {
+			int index = queue->subArray[i].size;
+			queue->subArray[i].connSubs[index] = sub;
+			queue->subArray[i].size++;
+		}
+	}
+}
+
+void SubscriberShutDown(SUBSCRIBER_QUEUE* queue, SOCKET acceptedSocket, SUBSCRIBER subscribers[])
+{
+
+	for (int i = 0; i < queue->size; i++)
+	{
+		for (int j = 0; j < queue->subArray[i].size; j++) 
+		{
+			if (queue->subArray[i].connSubs[j] == acceptedSocket) {   
+				int size = queue->subArray[i].size;						 
+				SOCKET temp = queue->subArray[i].connSubs[size];
+				if (temp != INV_SOCKET) {								 
+					queue->subArray[i].connSubs[size] = INV_SOCKET;
+					queue->subArray[i].connSubs[j] = temp;
+					queue->subArray[i].size--;							
+				}														
+				else {													 
+					queue->subArray[i].connSubs[j] = INV_SOCKET;
+					queue->subArray[i].size--;							 
+				}
+
+			}
+		}
+
+	}
+
+	for (int i = 0; i < numberOfSubscribedSubs; i++)
+	{
+		if (subscribers[i].socket == acceptedSocket) {
+			subscribers[i].socket = 0;
+			SAFE_DELETE_HANDLE(subscribers[i].hSemaphore);
+			subscribers[i].hSemaphore = 0;
+		}
+	}
+}
 
