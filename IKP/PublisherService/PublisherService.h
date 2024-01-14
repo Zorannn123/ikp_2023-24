@@ -30,8 +30,8 @@ int SelectFunction(SOCKET, char);
 char* ReceiveFunction(SOCKET);
 void Connect(SOCKET);
 void Publish(MESSAGE_QUEUE*, char*, char*, int);
-int SendFunction(SOCKET connectSocket, char* message, int messageSize);
-int ConnectToSubscriberService(SOCKET);
+int SendFunction(SOCKET, char*, int);
+void ConnectToSubscriberService(SOCKET);
 
 void Connect(SOCKET acceptedSocket) {
 
@@ -41,8 +41,7 @@ void Connect(SOCKET acceptedSocket) {
 	printf("\nPublisher %d connected.\n", ++numberOfPublishers);
 }
 
-int ConnectToSubscriberService(SOCKET connectSocket) {
-
+void ConnectToSubscriberService(SOCKET connectSocket) {
 	char* connectMessage = (char*)malloc(8 * sizeof(char));
 	if (connectMessage == NULL)
 	{
@@ -56,8 +55,6 @@ int ConnectToSubscriberService(SOCKET connectSocket) {
 
 	int retVal = SendFunction(connectSocket, connectMessage, messageSize);
 	free(connectMessage);
-
-	return retVal;
 }
 
 int SelectFunction(SOCKET listenSocket, char rw) {

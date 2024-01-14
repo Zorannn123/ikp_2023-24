@@ -12,7 +12,6 @@ int subscriberRecvThreadKilled = -1;
 
 SOCKET acceptedSocket;
 SOCKET acceptedSockets[NUMBER_OF_CLIENTS];
-int clientsCount = 0;
 
 SUBSCRIBER subscribers[NUMBER_OF_CLIENTS];
 SUBSCRIBER_QUEUE* subQueue;
@@ -48,7 +47,7 @@ DWORD WINAPI PubSub2Recieve(LPVOID lpParam)
 			char* message = ptr;
 
 			if (!strcmp(topic, "shutdown")) {
-				printf("\nPubSub1 disconnected.\n");
+				printf("\nPublisherService disconnected.\n");
 				acceptedSocket = -1;
 				free(recvRes);
 				break;
@@ -142,12 +141,9 @@ DWORD WINAPI SubscriberWork(LPVOID lpParam)
 
 		int messageSize = strlen(message) + 1;
 
-
-
 		int sendResult = SendFunction(argumentStructure.socket, message, messageSize);
 
 		free(message);
-
 
 		if (sendResult == -1)
 			break;
@@ -172,15 +168,7 @@ DWORD WINAPI SubscriberReceive(LPVOID lpParam) {
 
 	if (strcmp(recvRes, "ErrorC") && strcmp(recvRes, "ErrorR") && strcmp(recvRes, "ErrorS"))
 	{
-		char delimiter[] = ":";
-
-		char* ptr = strtok(recvRes, delimiter);
-
-		char* role = ptr;
-		ptr = strtok(NULL, delimiter);
-		char* topic = ptr;
-		ptr = strtok(NULL, delimiter);
-		if (!strcmp(topic, "shutDown")) {
+		if (!strcmp(recvRes, "shutdown")) {
 			printf("\nSubscriber %d disconnected.\n", argumentRecvStructure.clientNumber + 1);
 			subscribers[argumentSendStructure.clientNumber].running = false;
 			ReleaseSemaphore(subscribers[argumentSendStructure.clientNumber].hSemaphore, 1, NULL);
@@ -206,9 +194,9 @@ DWORD WINAPI SubscriberReceive(LPVOID lpParam) {
 			numberOfSubscribedSubs++;
 
 			EnterCriticalSection(&queueAccess);
-			Subscribe(subQueue, argumentSendStructure.socket, topic);
+			Subscribe(subQueue, argumentSendStructure.socket, recvRes);
 			LeaveCriticalSection(&queueAccess);
-			printf("\nSubscriber %d subscribed to topic: %s. \n", argumentRecvStructure.clientNumber + 1, topic);
+			printf("\nSubscriber %d subscribed to topic: %s. \n", argumentRecvStructure.clientNumber + 1, recvRes);
 			free(recvRes);
 		}
 	}
@@ -236,15 +224,7 @@ DWORD WINAPI SubscriberReceive(LPVOID lpParam) {
 
 		if (strcmp(recvRes, "ErrorC") && strcmp(recvRes, "ErrorR") && strcmp(recvRes, "ErrorS"))
 		{
-			char delimiter[] = ":";
-
-			char* ptr = strtok(recvRes, delimiter);
-
-			char* role = ptr;
-			ptr = strtok(NULL, delimiter);
-			char* topic = ptr;
-			ptr = strtok(NULL, delimiter);
-			if (!strcmp(topic, "shutDown")) {
+			if (!strcmp(recvRes, "shutdown")) {
 				printf("\nSubscriber %d disconnected.\n", argumentRecvStructure.clientNumber + 1);
 				subscribers[argumentSendStructure.clientNumber].running = false;
 				ReleaseSemaphore(subscribers[argumentSendStructure.clientNumber].hSemaphore, 1, NULL);
@@ -256,9 +236,9 @@ DWORD WINAPI SubscriberReceive(LPVOID lpParam) {
 			}
 
 			EnterCriticalSection(&queueAccess);
-			Subscribe(subQueue, argumentSendStructure.socket, topic);
+			Subscribe(subQueue, argumentSendStructure.socket, recvRes);
 			LeaveCriticalSection(&queueAccess);
-			printf("\nSubscriber %d subscribed to topic: %s.\n", argumentRecvStructure.clientNumber + 1, topic);
+			printf("\nSubscriber %d subscribed to topic: %s.\n", argumentRecvStructure.clientNumber + 1, recvRes);
 			free(recvRes);
 
 		}
@@ -413,7 +393,7 @@ int main() {
 
 	printf("\nServer successfully started, waiting for client connection.\n");
 
-	while (clientsCount < NUMBER_OF_CLIENTS && subService_running)
+	while (/*clientsCount < NUMBER_OF_CLIENTS  && */ subService_running)
 	{
 		int selectResult = SelectFunction(listenSocket, 'r');
 		if (selectResult == -1) {
@@ -437,7 +417,6 @@ int main() {
 		else if (!strcmp(client, "sub")) {
 			SubscriberRecvThreads[numberOfConnectedSubs] = CreateThread(NULL, 0, &SubscriberReceive, &subscriberThreadArgument, 0, &SubscriberRecvThreadsID[numberOfConnectedSubs]);
 			numberOfConnectedSubs++;
-			clientsCount++;
 		}
 	}
 
