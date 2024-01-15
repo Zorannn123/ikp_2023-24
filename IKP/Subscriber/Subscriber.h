@@ -183,3 +183,12 @@ char* ReceiveFunction(SOCKET acceptedSocket) {
 	}
 	return myBuffer;
 }
+
+bool AlreadySubscribed(char input, int topics[], int topicCount) {
+	for (int i = 0; i < topicCount; i++) {
+		if (topics[i] == input - '0') {
+			return true;
+		}
+	}
+	return false;
+}

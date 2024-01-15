@@ -6,9 +6,6 @@ CRITICAL_SECTION message_queueAccess;
 bool serverStopped = false;
 
 HANDLE pubSubSemaphore;
-int publisherThreadKilled = -1;
-int subscriberSendThreadKilled = -1;
-int subscriberRecvThreadKilled = -1;
 
 SOCKET acceptedSocket;
 SOCKET acceptedSockets[NUMBER_OF_CLIENTS];
@@ -24,8 +21,11 @@ DWORD SubscriberSendThreadsID[NUMBER_OF_CLIENTS];
 HANDLE SubscriberRecvThreads[NUMBER_OF_CLIENTS];
 DWORD SubscriberRecvThreadsID[NUMBER_OF_CLIENTS];
 
-HANDLE PubSub2Thread;
-DWORD PubSub2ThreadId;
+HANDLE PubSub2ReceiveThread;
+DWORD PubSub2ReceiveThreadId;
+
+HANDLE PubSub2WorkThread;
+DWORD PubSub2WorkThreadId;
 
 DWORD WINAPI PubSub2Recieve(LPVOID lpParam)
 {
@@ -85,33 +85,7 @@ DWORD WINAPI PubSub2Recieve(LPVOID lpParam)
 	return 1;
 }
 
-DWORD WINAPI CloseHandles(LPVOID lpParam) {
-	while (subService_running) {
-
-		if (subscriberSendThreadKilled != -1) {
-			for (int i = 0; i < numberOfSubscribedSubs; i++) {
-				if (subscriberSendThreadKilled == i) {
-					SAFE_DELETE_HANDLE(SubscriberSendThreads[i]);
-					SubscriberSendThreads[i] = 0;
-					subscriberSendThreadKilled = -1;
-				}
-			}
-		}
-
-		if (subscriberRecvThreadKilled != -1) {
-			for (int i = 0; i < numberOfConnectedSubs; i++) {
-				if (subscriberRecvThreadKilled == i) {
-					SAFE_DELETE_HANDLE(SubscriberRecvThreads[i]);
-					SubscriberRecvThreads[i] = 0;
-					subscriberRecvThreadKilled = -1;
-				}
-			}
-		}
-	}
-	return 1;
-}
-
-DWORD WINAPI SubscriberWork(LPVOID lpParam)
+DWORD WINAPI SubscriberSend(LPVOID lpParam)
 {
 	int iResult = 0;
 	THREAD_ARGUMENT argumentStructure = *(THREAD_ARGUMENT*)lpParam;
@@ -149,9 +123,6 @@ DWORD WINAPI SubscriberWork(LPVOID lpParam)
 			break;
 	}
 
-	if (!serverStopped)
-		subscriberSendThreadKilled = argumentStructure.clientNumber;
-
 	return 1;
 }
 
@@ -176,9 +147,6 @@ DWORD WINAPI SubscriberReceive(LPVOID lpParam) {
 			acceptedSockets[argumentSendStructure.clientNumber] = -1;
 			free(recvRes);
 
-			if (!serverStopped)
-				subscriberRecvThreadKilled = argumentSendStructure.clientNumber;
-
 			return 1;
 		}
 		else {
@@ -190,7 +158,7 @@ DWORD WINAPI SubscriberReceive(LPVOID lpParam) {
 			subscriber.running = true;
 			subscribers[numberOfSubscribedSubs] = subscriber;
 
-			SubscriberSendThreads[numberOfSubscribedSubs] = CreateThread(NULL, 0, &SubscriberWork, &argumentSendStructure, 0, &SubscriberSendThreadsID[numberOfSubscribedSubs]);
+			SubscriberSendThreads[numberOfSubscribedSubs] = CreateThread(NULL, 0, &SubscriberSend, &argumentSendStructure, 0, &SubscriberSendThreadsID[numberOfSubscribedSubs]);
 			numberOfSubscribedSubs++;
 
 			EnterCriticalSection(&queueAccess);
@@ -263,15 +231,12 @@ DWORD WINAPI SubscriberReceive(LPVOID lpParam) {
 		}
 	}
 
-	if (!serverStopped)
-		subscriberRecvThreadKilled = argumentSendStructure.clientNumber;
-
 	return 1;
 
 
 }
 
-DWORD WINAPI PubSubWork(LPVOID lpParam) {
+DWORD WINAPI PubSub2Work(LPVOID lpParam) {
 	int iResult = 0;
 	SOCKET sendSocket;
 	while (subService_running) {
@@ -393,7 +358,9 @@ int main() {
 
 	printf("\nServer successfully started, waiting for client connection.\n");
 
-	while (/*clientsCount < NUMBER_OF_CLIENTS  && */ subService_running)
+	PubSub2WorkThread = CreateThread(NULL, 0, &PubSub2Work, NULL, 0, &PubSub2WorkThreadId);
+
+	while (numberOfConnectedSubs < NUMBER_OF_CLIENTS && subService_running)
 	{
 		int selectResult = SelectFunction(listenSocket, 'r');
 		if (selectResult == -1) {
@@ -412,7 +379,7 @@ int main() {
 
 		char* client = Connect(acceptedSocket);
 		if (!strcmp(client, "pubsub1")) {
-			PubSub2Thread = CreateThread(NULL, 0, &PubSub2Recieve, &acceptedSocket, 0, &PubSub2ThreadId);
+			PubSub2ReceiveThread = CreateThread(NULL, 0, &PubSub2Recieve, &acceptedSocket, 0, &PubSub2ReceiveThreadId);
 		}
 		else if (!strcmp(client, "sub")) {
 			SubscriberRecvThreads[numberOfConnectedSubs] = CreateThread(NULL, 0, &SubscriberReceive, &subscriberThreadArgument, 0, &SubscriberRecvThreadsID[numberOfConnectedSubs]);
