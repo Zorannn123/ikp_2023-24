@@ -23,7 +23,7 @@
 #define INV_SOCKET 3435973836
 
 THREAD_ARGUMENT publisherThreadArgument;
-bool pubservice_running = true;
+bool pubsub1_running = true;
 int numberOfPublishers = 0;
 
 int SelectFunction(SOCKET, char);
@@ -70,7 +70,7 @@ int SelectFunction(SOCKET listenSocket, char rw) {
 		timeVal.tv_sec = 0;
 		timeVal.tv_usec = 0;
 
-		if (!pubservice_running)
+		if (!pubsub1_running)
 			return -1;
 
 		if (rw == 'r') {

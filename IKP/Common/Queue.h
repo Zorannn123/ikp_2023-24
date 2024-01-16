@@ -83,7 +83,6 @@ void EnqueueSub(SUBSCRIBER_QUEUE* queue, char* topic) {
 	queue->rear = (queue->rear + 1) % queue->capacity;
 	queue->subArray[queue->rear] = ts;
 	queue->size = queue->size + 1;
-	printf("%s enqueued to subscriber queue.\n", ts.topic);
 }
 
 void EnqueueMessage(MESSAGE_QUEUE* queue, DATA data) {
@@ -91,15 +90,6 @@ void EnqueueMessage(MESSAGE_QUEUE* queue, DATA data) {
 	queue->rear = (queue->rear + 1) % queue->capacity;
 	queue->dataArray[queue->rear] = data;
 	queue->size = queue->size + 1;
-}
-
-TOPIC_SUBSCRIBERS DequeueSub(SUBSCRIBER_QUEUE* queue) {
-	if (!IsSubQueueEmpty(queue)) {
-		TOPIC_SUBSCRIBERS ts = queue->subArray[queue->front];
-		queue->front = (queue->front + 1) % queue->capacity;
-		queue->size = queue->size - 1;
-		return ts;
-	}
 }
 
 DATA DequeueMessage(MESSAGE_QUEUE* queue) {

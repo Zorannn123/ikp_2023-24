@@ -27,13 +27,16 @@ DWORD PubSub2ReceiveThreadId;
 HANDLE PubSub2WorkThread;
 DWORD PubSub2WorkThreadId;
 
-DWORD WINAPI PubSub2Recieve(LPVOID lpParam)
+HANDLE StopServerThread;
+DWORD StopServerThreadID;
+
+DWORD WINAPI Recieve(LPVOID lpParam)
 {
 	int iResult = 0;
 	SOCKET acceptedSocket = *(SOCKET*)lpParam;
 	char* recvRes;
 
-	while (subService_running) {
+	while (pubsub2_running) {
 
 		recvRes = ReceiveFunction(acceptedSocket);
 		if (strcmp(recvRes, "ErrorC") && strcmp(recvRes, "ErrorR") && strcmp(recvRes, "ErrorS"))
@@ -90,7 +93,7 @@ DWORD WINAPI SubscriberSend(LPVOID lpParam)
 	int iResult = 0;
 	THREAD_ARGUMENT argumentStructure = *(THREAD_ARGUMENT*)lpParam;
 
-	while (subService_running) {
+	while (pubsub2_running) {
 		for (int i = 0; i < numberOfSubscribedSubs; i++)
 		{
 			if (argumentStructure.socket == subscribers[i].socket) {
@@ -99,7 +102,7 @@ DWORD WINAPI SubscriberSend(LPVOID lpParam)
 			}
 		}
 
-		if (serverStopped || !subscribers[argumentStructure.clientNumber].running)
+		if (!pubsub2_running || !subscribers[argumentStructure.clientNumber].running)
 			break;
 
 		char* message = (char*)malloc(sizeof(DATA) + 1);
@@ -186,7 +189,7 @@ DWORD WINAPI SubscriberReceive(LPVOID lpParam) {
 
 	}
 
-	while (subscriberRunning && subService_running) {
+	while (subscriberRunning && pubsub2_running) {
 
 		recvRes = ReceiveFunction(argumentSendStructure.socket);
 
@@ -239,9 +242,9 @@ DWORD WINAPI SubscriberReceive(LPVOID lpParam) {
 DWORD WINAPI PubSub2Work(LPVOID lpParam) {
 	int iResult = 0;
 	SOCKET sendSocket;
-	while (subService_running) {
+	while (pubsub2_running) {
 		WaitForSingleObject(pubSubSemaphore, INFINITE);
-		if (serverStopped)
+		if (!pubsub2_running)
 			break;
 
 		EnterCriticalSection(&message_queueAccess);
@@ -266,6 +269,47 @@ DWORD WINAPI PubSub2Work(LPVOID lpParam) {
 
 		}
 
+	}
+	return 1;
+}
+
+DWORD WINAPI StopServer(LPVOID lpParam)
+{
+	char input;
+
+	while (pubsub2_running) {
+
+		printf("\nPress X to stop server.\n");
+		input = _getch();
+
+		if (input == 'x' || input == 'X') {
+
+			int iResult = 0;
+
+			pubsub2_running = false;
+
+			ReleaseSemaphore(pubSubSemaphore, 1, NULL);
+			for (int i = 0; i < numberOfSubscribedSubs; i++)
+			{
+				ReleaseSemaphore(subscribers[i].hSemaphore, 1, NULL);
+			}
+
+			for (int i = 0; i < numberOfConnectedSubs; i++) {
+				if (acceptedSockets[i] != -1) {
+
+					iResult = shutdown(acceptedSockets[i], SD_BOTH);
+					if (iResult == SOCKET_ERROR)
+					{
+						printf("\nshutdown failed with error: %d\n", WSAGetLastError());
+						closesocket(acceptedSockets[i]);
+						return 1;
+					}
+					closesocket(acceptedSockets[i]);
+				}
+			}
+
+			break;
+		}
 	}
 	return 1;
 }
@@ -360,7 +404,7 @@ int main() {
 
 	PubSub2WorkThread = CreateThread(NULL, 0, &PubSub2Work, NULL, 0, &PubSub2WorkThreadId);
 
-	while (numberOfConnectedSubs < NUMBER_OF_CLIENTS && subService_running)
+	while (numberOfConnectedSubs < NUMBER_OF_CLIENTS && pubsub2_running)
 	{
 		int selectResult = SelectFunction(listenSocket, 'r');
 		if (selectResult == -1) {
@@ -379,7 +423,7 @@ int main() {
 
 		char* client = Connect(acceptedSocket);
 		if (!strcmp(client, "pubsub1")) {
-			PubSub2ReceiveThread = CreateThread(NULL, 0, &PubSub2Recieve, &acceptedSocket, 0, &PubSub2ReceiveThreadId);
+			PubSub2ReceiveThread = CreateThread(NULL, 0, &Recieve, &acceptedSocket, 0, &PubSub2ReceiveThreadId);
 		}
 		else if (!strcmp(client, "sub")) {
 			SubscriberRecvThreads[numberOfConnectedSubs] = CreateThread(NULL, 0, &SubscriberReceive, &subscriberThreadArgument, 0, &SubscriberRecvThreadsID[numberOfConnectedSubs]);
@@ -399,7 +443,13 @@ int main() {
 			WaitForSingleObject(SubscriberSendThreads[i], INFINITE);
 	}
 
+	if (PubSub2WorkThread) {
+		WaitForSingleObject(PubSub2WorkThread, INFINITE);
+	}
 
+	if (StopServerThread) {
+		WaitForSingleObject(StopServerThread, INFINITE);
+	}
 
 	printf("\nServer shutting down...\n");
 
@@ -420,8 +470,11 @@ int main() {
 		SAFE_DELETE_HANDLE(subscribers[i].hSemaphore);
 	}
 
+	SAFE_DELETE_HANDLE(PubSub2WorkThread);
+	SAFE_DELETE_HANDLE(StopServerThread);
 
 	SAFE_DELETE_HANDLE(pubSubSemaphore);
+	closesocket(acceptedSocket);
 	closesocket(listenSocket);
 
 	free(subQueue);
