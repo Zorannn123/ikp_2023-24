@@ -38,7 +38,7 @@ void Connect(SOCKET acceptedSocket) {
 	publisherThreadArgument.clientNumber = numberOfPublishers;
 	publisherThreadArgument.socket = acceptedSocket;
 
-	printf("\nPublisher %d connected.\n", ++numberOfPublishers);
+	printf("\nPublisher %d connected.\n", numberOfPublishers + 1);
 }
 
 void ConnectToSubscriberService(SOCKET connectSocket) {

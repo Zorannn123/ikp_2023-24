@@ -20,6 +20,11 @@ DWORD WINAPI SubscriberSend(LPVOID lpParam) {
 		char input = _getch();
 
 		char* message = (char*)malloc(20 * sizeof(char));
+		
+		if (message == NULL) {
+			printf("Unable to allocate memory for message.");
+			exit(0);
+		}
 
 		if (input == '1' || input == '2' || input == '3') {
 			if (AlreadySubscribed(input, topics, topicCount)) {
@@ -166,7 +171,11 @@ int main()
 	if (SendThread)
 		WaitForSingleObject(SendThread, INFINITE);
 
+	if (RecvThread)
+		WaitForSingleObject(RecvThread, INFINITE);
+
 	SAFE_DELETE_HANDLE(SendThread);
+	SAFE_DELETE_HANDLE(RecvThread);
 
 	closesocket(connectSocket);
 

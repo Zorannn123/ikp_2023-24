@@ -15,6 +15,7 @@
 #pragma comment (lib, "Ws2_32.lib")
 #pragma comment (lib, "Mswsock.lib")
 #pragma comment (lib, "AdvApi32.lib")
+#pragma warning(disable:6001)
 
 #define DEFAULT_BUFLEN 512
 #define DEFAULT_PORT "27017"
@@ -205,16 +206,16 @@ void SubscriberShutDown(SUBSCRIBER_QUEUE* queue, SOCKET acceptedSocket, SUBSCRIB
 		for (int j = 0; j < queue->subArray[i].size; j++) 
 		{
 			if (queue->subArray[i].connSubs[j] == acceptedSocket) {   
-				int size = queue->subArray[i].size;						 
-				SOCKET temp = queue->subArray[i].connSubs[size];
-				if (temp != INV_SOCKET) {								 
-					queue->subArray[i].connSubs[size] = INV_SOCKET;
+				int index = queue->subArray[i].size - 1;
+				SOCKET temp = queue->subArray[i].connSubs[index];
+				if (temp != INV_SOCKET) {
+					queue->subArray[i].connSubs[index] = INV_SOCKET;
 					queue->subArray[i].connSubs[j] = temp;
-					queue->subArray[i].size--;							
-				}														
-				else {													 
+					queue->subArray[i].size--;
+				}
+				else {
 					queue->subArray[i].connSubs[j] = INV_SOCKET;
-					queue->subArray[i].size--;							 
+					queue->subArray[i].size--;
 				}
 
 			}
@@ -225,7 +226,7 @@ void SubscriberShutDown(SUBSCRIBER_QUEUE* queue, SOCKET acceptedSocket, SUBSCRIB
 	for (int i = 0; i < numberOfSubscribedSubs; i++)
 	{
 		if (subscribers[i].socket == acceptedSocket) {
-			subscribers[i].socket = 0;
+			subscribers[i].socket = INV_SOCKET;
 			SAFE_DELETE_HANDLE(subscribers[i].hSemaphore);
 			subscribers[i].hSemaphore = 0;
 		}
