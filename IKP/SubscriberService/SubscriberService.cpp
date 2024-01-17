@@ -381,6 +381,7 @@ int main() {
 	printf("\nServer successfully started, waiting for client connection.\n");
 
 	PubSub2WorkThread = CreateThread(NULL, 0, &PubSub2Work, NULL, 0, &PubSub2WorkThreadId);
+	StopServerThread = CreateThread(NULL, 0, &StopServer, NULL, 0, &StopServerThreadID);
 
 	while (numberOfConnectedSubs < NUMBER_OF_CLIENTS && pubsub2_running)
 	{
@@ -401,6 +402,7 @@ int main() {
 
 		char* client = Connect(acceptedSockets[numberOfConnectedSubs]);
 		if (!strcmp(client, "pubsub1")) {
+			acceptedSocket = acceptedSockets[numberOfConnectedSubs];
 			PubSub2ReceiveThread = CreateThread(NULL, 0, &Recieve, &acceptedSocket, 0, &PubSub2ReceiveThreadId);
 		}
 		else if (!strcmp(client, "sub")) {

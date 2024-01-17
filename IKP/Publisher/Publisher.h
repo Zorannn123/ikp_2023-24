@@ -32,8 +32,8 @@ int SelectFunction(SOCKET, char);
 void PrintMenu() {
 	printf("\nChoose a topic: \n");
 	printf("\t1.Books\n");
-	printf("\t2.Football teams\n");
-	printf("\t3.Basketball teams\n");
+	printf("\t2.Football\n");
+	printf("\t3.Basketball\n");
 	printf("Press X if you want to close connection.\n");
 }
 

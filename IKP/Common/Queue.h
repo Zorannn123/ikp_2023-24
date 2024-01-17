@@ -86,6 +86,7 @@ void EnqueueSub(SUBSCRIBER_QUEUE* queue, char* topic) {
 	queue->rear = (queue->rear + 1) % queue->capacity;
 	queue->subArray[queue->rear] = ts;
 	queue->size = queue->size + 1;
+	printf("%s enqueued to subscriber queue.\n", ts.topic);
 }
 
 void EnqueueMessage(MESSAGE_QUEUE* queue, DATA data) {

@@ -34,39 +34,24 @@ bool AlreadySubscribed(char, int[], int);
 
 void PrintMenu() {
 	printf("\nChoose a topic: \n");
-	printf("\t1.Animals\n");
-	printf("\t2.History\n");
-	printf("\t3.Geography\n");
-	printf("\t4.Sport \n");
-	printf("\t5.Mathematics\n");
-	printf("\t6.Music \n");
+	printf("\t1.Books\n");
+	printf("\t2.Football\n");
+	printf("\t3.Basketball\n");
 	printf("Press X if you want to close connection.\n");
 }
 
 void ProcessInput(char input, char* message) {
 	if (input == '1') {
-		strcpy(message, "Animals");
-		printf("You subscribed to topic Animals.\n");
+		strcpy(message, "Books");
+		printf("You subscribed to topic Books.\n");
 	}
 	else if (input == '2') {
-		strcpy(message, "History");
-		printf("You subscribed to topic History.\n");
+		strcpy(message, "Football");
+		printf("You subscribed to topic Football.\n");
 	}
 	else if (input == '3') {
-		strcpy(message, "Geography");
-		printf("You subscribed to topic Geography.\n");
-	}
-	else if (input == '4') {
-		strcpy(message, "Sport");
-		printf("You subscribed to topic Sport.\n");
-	}
-	else if (input == '5') {
-		strcpy(message, "Mathematics");
-		printf("You subscribed to topic Mathematics.\n");
-	}
-	else if (input == '6') {
-		strcpy(message, "Music");
-		printf("You subscribed to topic Music.\n");
+		strcpy(message, "Basketball");
+		printf("You subscribed to topic Basketball.\n");
 	}
 }
 

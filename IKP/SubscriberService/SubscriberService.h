@@ -58,7 +58,7 @@ char* Connect(SOCKET acceptedSocket) {
 			subscriberThreadArgument.socket = acceptedSocket;
 			subscriberThreadArgument.clientNumber = numberOfConnectedSubs;
 
-			printf("\nSubscriber %d connected.\n", ++numberOfConnectedSubs);
+			printf("\nSubscriber %d connected.\n", numberOfConnectedSubs + 1);
 
 			free(recvRes);
 
